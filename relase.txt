@@ -1,0 +1,51 @@
+### Overview
+TripCo now has a 3-opt option to further optimize the trips. The map is now updated with Google maps capabilities, allowing for panning and zoom. The code is further optimized and includes more tests to help improve the speed and response of the application. There are more selection options for the user to use as well.
+
+### What's New
+* Web - Include new location selection capabilities for easier trip customization
+* 3-opt - A new optimization option is available to shorten trips even more
+* Map - Google Maps enabled map to allow for panning and zooming when observing the trip routes
+* Tests - Tests for each class have been added to ensure accurate information is delivered to the user
+
+### Improvements
+The trip can be shorter using 3-opt optimization. More selection options make it easier for users to get the exact trip that they want.
+
+### Fixes
+More tests have been added to improve the quality and reliability of the code. Selection functions have been improved to work in a variety of new ways.
+
+### Outstanding Issues
+Select Starting Location (#72)
+
+### Installation and Deployment
+1. Using git, clone the T16 repository
+2. `cd` into T16
+3. Execute `git pull origin`
+4. Execute `mvn package`
+5. `cd` into web
+6. Execute `npm install`
+7. Execute `npm install react-select`
+8. Execute `npm install react-google-map`
+9. Execute `npm install recompose`
+10. Execute webpage using `npm run build`
+11. Change ss permissions using `chmod +x ss`
+12. Run the application and server using `./ss "java -cp ../target/T16-5.0.0-SNAPSHOT.jar edu.csu2017fa314.T16.TripCo" "npm start"`
+13. The application can now be opened from any browser on the CSU network using the url "(machine-name).cs.colostate.edu:6712"
+14. Type in a keyword to search in the search bar and press enter or the submit button
+      OR
+      Use the "Load saved trip" button to load a saved trip
+15. Select destinations using the checkboxes (if not loading a saved trip); selected destinations will appear below
+16. Choose from miles or kilometers
+17. Click the "Plan" button
+*Optional Steps*
+18. Click the "Click here for a map" button to display a map of your trip
+19. Choose additional information to display in the dropdown menu (Click "Show" to display)
+20. Click the "Save this trip" button to download this trip to your computer
+
+### Dependencies
+* babel
+* JavaScript React (react-select, react-google-map, recompose)
+* npm
+* maven
+* mysql
+* gson
+* spark

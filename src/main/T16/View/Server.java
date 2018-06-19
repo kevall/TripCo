@@ -1,0 +1,170 @@
+package edu.csu2017fa314.T16.View;
+
+import edu.csu2017fa314.T16.Model.Leg;
+import edu.csu2017fa314.T16.Model.Itinerary;
+
+import java.util.ArrayList;
+import java.io.*;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import edu.csu2017fa314.T16.Model.Model;
+import spark.Request;
+import spark.Response;
+import static spark.Spark.port;
+import static spark.Spark.post;
+
+public class Server {
+
+    private String map;
+
+    public static void main(String[] args) {
+        Server s = new Server();
+        s.serve();
+    }
+
+    public void serve() {
+        Gson g = new Gson();
+        port(6713);
+        post("/testing", (rec, res) -> {
+            return g.toJson(testing(rec, res));
+        }); // Create new listener
+		    port(6713);
+        post("/download", (rec, res) -> {
+            // call the download function
+            download(rec, res);
+            // return the raw HttpServletResponse from the Response
+            // Note that we do not send a JSON
+            return rec.raw();
+	});
+    }
+	
+
+    // Called if the user requests to download a trip
+    private Object download(Request rec, Response res) {
+        // As before, parse the request and convert it to a Java class with Gson:
+        JsonParser parser = new JsonParser();
+        JsonElement elm = parser.parse(rec.body());
+        Gson gson = new Gson();
+        ServerRequest sRec = gson.fromJson(elm, ServerRequest.class);
+
+        // Sending a file back requires different response headers
+        setHeadersFile(res);
+        // Write a file to the response
+        String[] codesArray = sRec.getDescription().split(",");
+        ArrayList<String> codes = new ArrayList<>();
+	for(String s : codesArray) { codes.add(s); }
+        writeFile(res, codes);
+
+        return res;
+    }
+
+    private void writeFile(Response res, ArrayList<String> locations) {
+        try {
+            // Write our file directly to the response rather than to a file
+            PrintWriter fileWriter = new PrintWriter(res.raw().getOutputStream());
+            // Ideally, the user will be able to name their own trips. We hard code it here:
+            fileWriter.println("{ \"title\" : \"The Coolest Trip\",\n" +
+                    "  \"destinations\" : [");
+            for (int i = 0; i < locations.size(); i++) {
+                if (i < locations.size() - 1) {
+                    fileWriter.println("\"" + locations.get(i) + "\",");
+                } else {
+                    fileWriter.println("\"" + locations.get(i) + "\"]}");
+                }
+            }
+            // Important: flush and close the writer or a blank file will be sent
+            fileWriter.flush();
+            fileWriter.close();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+}
+
+    // called by testing method if the client requests an svg
+    
+
+    //called by testing method if client requests an initial search
+    private Object serveSearch(String searched) {
+        Gson gson = new Gson();
+        Model m = new Model("kevall", "830753533"); // Create new Model instance and pass in credentials 
+		//firstQuery() uses the search word to query the database; returns an ArrayList of Location objects (codes & names)
+		SearchResponse searchRes = new SearchResponse(m.firstQuery(searched));
+        System.out.println("Sending \"" + searchRes.toString() + "\" to server.");
+        //Convert response to JSON
+        return gson.toJson(searchRes, SearchResponse.class);
+    }
+
+	//called by testing method after client has selected locations for a trip
+	private Object serveSelect(ArrayList<String> locations, boolean miles, int op) {
+		Gson gson = new Gson();
+        Model m = new Model("kevall", "830753533"); // Create new Model instance and pass in credentials 
+      	//secondQuery() uses the selected locations' codes to query the database; returns an ArrayList<String[]> containing all location information
+      	//Itinerary builds an optimal trip using the locations
+		Itinerary i = new Itinerary(m.secondQuery(locations), miles, op);
+        SelectResponse selectRes = new SelectResponse(i.getTrip()); 
+        System.out.println("Sending \"" + selectRes.toString() + "\" to server.");
+        //Convert response to JSON
+        return gson.toJson(selectRes, SelectResponse.class);
+	}
+
+    private Object testing(Request rec, Response res) {
+        // Set the return headers
+        setHeaders(res);
+
+        // Init json parser
+        JsonParser parser = new JsonParser();
+
+        // Grab the json body from POST
+        JsonElement elm = parser.parse(rec.body());
+
+        // Create new Gson (a Google library for creating a JSON representation of a java class)
+        Gson gson = new Gson();
+
+        // Create new Object from received JsonElement elm
+        // Note that both possible requests have the same format (see app.js)
+        ServerRequest sReq = gson.fromJson(elm, ServerRequest.class);
+
+        // The object generated by the frontend should match whatever class you are reading into.
+        // Notice how DataClass has name and ID and how the frontend is generating an object with name and ID.
+        System.out.println("Got \"" + sReq.toString() + "\" from server.");
+
+        // Because both possible requests from the client have the same format, 
+        // we can check the "type" of request we've received: either "query" or "svg"
+        if (sReq.getRequest().equals("search")) {
+        	return serveSearch(sReq.getDescription()); 
+        }
+        else if(sReq.getRequest().equals("select")) { 
+        	System.out.println("Description: " + sReq.getDescription());
+        	String[] codesArray = sReq.getDescription().split(",");
+        	ArrayList<String> codes = new ArrayList<>();
+        	for(String s : codesArray) { codes.add(s); }
+       		return serveSelect(codes, sReq.getUnits(), sReq.getOp()); 
+        }
+	return null;
+    }
+
+    private void setHeaders(Response res) {
+        // Declares returning type json
+        res.header("Content-Type", "application/json");
+
+        // Ok for browser to call even if different host host
+        res.header("Access-Control-Allow-Origin", "*");
+        res.header("Access-Control-Allow-Headers", "*");
+    }
+	
+    private void setHeadersFile(Response res) {
+        /* Unlike the other responses, the file request sends back an actual file. This means
+        that we have to work with the raw HttpServletRequest that Spark's Response class is built
+        on.
+         */
+        // First, add the same Access Control headers as before
+        res.raw().addHeader("Access-Control-Allow-Origin", "*");
+        res.raw().addHeader("Access-Control-Allow-Headers", "*");
+        // Set the content type to "force-download." Basically, we "trick" the browser with
+        // an unknown file type to make it download the file instead of opening it.
+        res.raw().setContentType("application/force-download");
+        res.raw().addHeader("Content-Disposition", "attachment; filename=\"selection.json\"");
+    }
+}
